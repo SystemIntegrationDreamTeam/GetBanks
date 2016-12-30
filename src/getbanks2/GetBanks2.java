@@ -21,42 +21,50 @@ import java.util.concurrent.TimeoutException;
  */
 public class GetBanks2 {
 
-        private final static String LISTENING_QUEUE_NAME = "2";
- 
-        private static String message;
+    private final static String LISTENING_QUEUE_NAME = "RuleBaseQueue";
+    private final static String SENDING_QUEUE_NAME = "RecipListQueue";
+
+    private static String message;
+
     /**
      * @param args the command line arguments
      * @throws java.io.IOException
      * @throws java.util.concurrent.TimeoutException
      */
     public static void main(String[] args) throws IOException, TimeoutException {
-        
-    ConnectionFactory factory = new ConnectionFactory();
-    factory.setHost("datdb.cphbusiness.dk");
-    factory.setVirtualHost("student");
-    factory.setUsername("student");
-    factory.setPassword("cph");
-    Connection connection = factory.newConnection();
-    Channel channel = connection.createChannel();
 
-    channel.queueDeclare(LISTENING_QUEUE_NAME, false, false, false, null);
-    System.out.println(" [*] Waiting for messages. To exit press CTRL+C");
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost("datdb.cphbusiness.dk");
+        factory.setVirtualHost("student");
+        factory.setUsername("Dreamteam");
+        factory.setPassword("bastian");
+        Connection connection = factory.newConnection();
+        Channel listeningChannel = connection.createChannel();
+        Channel sendingChannel = connection.createChannel();
 
-    Consumer consumer = new DefaultConsumer(channel) {
-      @Override
-      public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
-          throws IOException {
-         message = new String(body, "UTF-8");
-         System.out.println(" [x] Received '" + message + "'");
-      }
-    };
-    channel.basicConsume(LISTENING_QUEUE_NAME, true, consumer);
-  
-    }
-    
-    private static void tester(String message){
-        String result = getBanks("22222-3333",Integer.parseInt(message),321,5432);
-        System.out.println(result);
+        listeningChannel.queueDeclare(LISTENING_QUEUE_NAME, false, false, false, null);
+        System.out.println(" [*] Waiting for messages. To exit press CTRL+C");
+
+        Consumer consumer = new DefaultConsumer(listeningChannel) {
+            @Override
+            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+                    throws IOException {
+                message = new String(body, "UTF-8");
+                System.out.println(" [x] Received '" + message + "'");
+
+                String[] arr = message.split(",");
+
+                String banks = getBanks(arr[0], Integer.parseInt(arr[1]), Double.parseDouble(arr[2]), Integer.parseInt(arr[3]));
+
+                message += "," + banks;
+
+                sendingChannel.queueDeclare(SENDING_QUEUE_NAME, false, false, false, null);
+                sendingChannel.basicPublish("", SENDING_QUEUE_NAME, null, message.getBytes());
+
+            }
+        };
+        listeningChannel.basicConsume(LISTENING_QUEUE_NAME, true, consumer);
+
     }
 
     private static String getBanks(java.lang.String ssn, int creditScore, double loanAmount, int loanDuration) {
@@ -65,7 +73,4 @@ public class GetBanks2 {
         return port.getBanks(ssn, creditScore, loanAmount, loanDuration);
     }
 
-    
-    
-   
 }
