@@ -35,7 +35,6 @@ public class GetBanks2 {
 
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost("datdb.cphbusiness.dk");
-        factory.setVirtualHost("student");
         factory.setUsername("Dreamteam");
         factory.setPassword("bastian");
         Connection connection = factory.newConnection();
@@ -57,6 +56,8 @@ public class GetBanks2 {
                 String banks = getBanks(arr[0], Integer.parseInt(arr[1]), Double.parseDouble(arr[2]), Integer.parseInt(arr[3]));
 
                 message += "," + banks;
+                
+                System.out.println(message);
 
                 sendingChannel.queueDeclare(SENDING_QUEUE_NAME, false, false, false, null);
                 sendingChannel.basicPublish("", SENDING_QUEUE_NAME, null, message.getBytes());
